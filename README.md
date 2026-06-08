@@ -124,14 +124,36 @@ in your browser.
 
 ## 📸 Screenshots
 
+### Onboarding Quiz
+Before using the dashboard, users take a 4-step interactive quiz to establish their baseline annual carbon footprint.
+
+| Step 1: Commuting Habits | Completed Baseline Estimate |
+| :---: | :---: |
+| ![Onboarding Step 1](images/onboarding_step1.png) | ![Onboarding Completed](images/onboarding_completed.png) |
+
 ### Dashboard
-(Add screenshot here)
+Once the baseline is set, the main dashboard provides a score grade, monthly emissions tracking, your primary source of emissions, and carbon offsets earned.
 
-### Carbon Analysis
-(Add screenshot here)
+![Main Dashboard](images/dashboard.png)
 
-### Sustainability Recommendations
-(Add screenshot here)
+### Carbon Analysis & Activity Logging
+Users can log daily actions under Transport, Food, Energy, and Shopping. Emissions are calculated in real-time, and daily logs are stored locally.
+
+| Empty Activity Log | Active Daily Log |
+| :---: | :---: |
+| ![Log Activity (Empty)](images/log_activity_empty.png) | ![Logged Action Entries](images/log_activity.png) |
+
+### Sustainability Recommendations & Actions
+Personalized insights offer quick wins and high-impact suggestions, which users can mark as completed in their interactive action checklist.
+
+| Tailored Insights | Recommended Actions |
+| :---: | :---: |
+| ![Insights](images/insights.png) | ![Actions](images/actions.png) |
+
+### Community Engagement
+Users can view the local leaderboard and participate in group sustainability challenges like "Car-Free June".
+
+![Community Challenges & Leaderboard](images/community.png)
 
 ---
 
