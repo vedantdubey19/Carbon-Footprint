@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoTrace — Carbon Footprint Awareness Platform</title>
+  <meta name="description" content="EcoTrace helps individuals understand, track, and reduce their personal carbon footprint with smart insights and actionable goals." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Toast container -->
+  <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- ─────────────── NAVBAR ─────────────── -->
+  <header id="navbar">
+    <div class="nav-logo">🌿 EcoTrace</div>
+    <nav class="nav-tabs" role="navigation" aria-label="Main navigation">
+      <button class="nav-tab" id="tab-onboarding" data-screen="onboarding" aria-label="Setup">Setup</button>
+      <button class="nav-tab" id="tab-dashboard"  data-screen="dashboard"  aria-label="Dashboard">Dashboard</button>
+      <button class="nav-tab" id="tab-log"        data-screen="log"        aria-label="Log activity">Log activity</button>
+      <button class="nav-tab" id="tab-insights"   data-screen="insights"   aria-label="Insights">
+        Insights <span class="badge" id="insights-badge">3</span>
+      </button>
+      <button class="nav-tab" id="tab-actions"    data-screen="actions"    aria-label="Actions">Actions</button>
+      <button class="nav-tab" id="tab-community"  data-screen="community"  aria-label="Community">Community</button>
+    </nav>
+  </header>
+
+  <main id="app">
+
+    <!-- ═══════════════════════════════════════
+         SCREEN 1 — ONBOARDING
+    ═══════════════════════════════════════ -->
+    <section id="screen-onboarding" class="screen active" aria-label="Onboarding setup">
+      <div class="onboarding-wrap">
+        <div class="onboarding-header">
+          <div class="eco-icon-big">🌍</div>
+          <h1>Discover your carbon footprint</h1>
+          <p class="onboarding-sub">Answer 4 quick questions to get your personalised baseline estimate.</p>
+        </div>
+
+        <div class="quiz-progress-bar">
+          <div class="quiz-progress-fill" id="quiz-progress-fill"></div>
+        </div>
+        <p class="quiz-step-label" id="quiz-step-label">Step 1 of 4</p>
+
+        <!-- Q1 -->
+        <div class="quiz-card active" id="q1">
+          <h2 class="quiz-question">How do you mainly commute?</h2>
+          <div class="quiz-options" role="radiogroup" aria-labelledby="q1">
+            <label class="quiz-option" id="q1-opt0">
+              <input type="radio" name="q1" value="2.4" /><span class="opt-icon">🚗</span><span class="opt-text"><strong>Private car (petrol)</strong><em>2.4 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q1-opt1">
+              <input type="radio" name="q1" value="1.0" /><span class="opt-icon">⚡</span><span class="opt-text"><strong>Electric vehicle</strong><em>1.0 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q1-opt2">
+              <input type="radio" name="q1" value="0.3" /><span class="opt-icon">🚌</span><span class="opt-text"><strong>Public transport</strong><em>0.3 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q1-opt3">
+              <input type="radio" name="q1" value="0" /><span class="opt-icon">🚲</span><span class="opt-text"><strong>Walk / cycle</strong><em>0 t CO₂/yr</em></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Q2 -->
+        <div class="quiz-card" id="q2">
+          <h2 class="quiz-question">How often do you fly?</h2>
+          <div class="quiz-options" role="radiogroup" aria-labelledby="q2">
+            <label class="quiz-option" id="q2-opt0">
+              <input type="radio" name="q2" value="0" /><span class="opt-icon">🚫</span><span class="opt-text"><strong>Never</strong><em>0 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q2-opt1">
+              <input type="radio" name="q2" value="1.5" /><span class="opt-icon">✈️</span><span class="opt-text"><strong>1–2 short-haul flights</strong><em>1.5 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q2-opt2">
+              <input type="radio" name="q2" value="3.5" /><span class="opt-icon">🛫</span><span class="opt-text"><strong>3–5 flights</strong><em>3.5 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q2-opt3">
+              <input type="radio" name="q2" value="8" /><span class="opt-icon">🌐</span><span class="opt-text"><strong>6+ or long-haul</strong><em>8 t CO₂/yr</em></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Q3 -->
+        <div class="quiz-card" id="q3">
+          <h2 class="quiz-question">What best describes your diet?</h2>
+          <div class="quiz-options" role="radiogroup" aria-labelledby="q3">
+            <label class="quiz-option" id="q3-opt0">
+              <input type="radio" name="q3" value="3.3" /><span class="opt-icon">🥩</span><span class="opt-text"><strong>Heavy meat eater</strong><em>3.3 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q3-opt1">
+              <input type="radio" name="q3" value="2.5" /><span class="opt-icon">🍖</span><span class="opt-text"><strong>Moderate meat</strong><em>2.5 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q3-opt2">
+              <input type="radio" name="q3" value="1.7" /><span class="opt-icon">🥗</span><span class="opt-text"><strong>Vegetarian</strong><em>1.7 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q3-opt3">
+              <input type="radio" name="q3" value="1.5" /><span class="opt-icon">🌱</span><span class="opt-text"><strong>Vegan</strong><em>1.5 t CO₂/yr</em></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Q4 -->
+        <div class="quiz-card" id="q4">
+          <h2 class="quiz-question">What powers your home?</h2>
+          <div class="quiz-options" role="radiogroup" aria-labelledby="q4">
+            <label class="quiz-option" id="q4-opt0">
+              <input type="radio" name="q4" value="3.0" /><span class="opt-icon">🏭</span><span class="opt-text"><strong>Coal / grid</strong><em>3.0 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q4-opt1">
+              <input type="radio" name="q4" value="1.8" /><span class="opt-icon">⚡</span><span class="opt-text"><strong>Mixed + some solar</strong><em>1.8 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q4-opt2">
+              <input type="radio" name="q4" value="0.5" /><span class="opt-icon">🌤️</span><span class="opt-text"><strong>Mostly renewables</strong><em>0.5 t CO₂/yr</em></span>
+            </label>
+            <label class="quiz-option" id="q4-opt3">
+              <input type="radio" name="q4" value="0.2" /><span class="opt-icon">☀️</span><span class="opt-text"><strong>100% renewable</strong><em>0.2 t CO₂/yr</em></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Live preview -->
+        <div class="footprint-preview" id="footprint-preview">
+          <div class="preview-value" id="preview-value">0.0 <span>tonnes CO₂</span></div>
+          <div class="preview-label">Your estimated annual footprint</div>
+          <div class="preview-context">Global average: 4.7t &nbsp;·&nbsp; India avg: 1.9t</div>
+        </div>
+
+        <button class="btn-primary" id="btn-see-dashboard" disabled>See my dashboard →</button>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN 2 — DASHBOARD
+    ═══════════════════════════════════════ -->
+    <section id="screen-dashboard" class="screen" aria-label="Dashboard">
+      <div class="screen-inner">
+        <div class="dashboard-top">
+          <!-- Score ring -->
+          <div class="score-ring-wrap">
+            <svg class="score-ring" viewBox="0 0 160 160" width="160" height="160" aria-hidden="true">
+              <circle class="ring-bg"    cx="80" cy="80" r="68" />
+              <circle class="ring-track" cx="80" cy="80" r="68" id="ring-track" />
+            </svg>
+            <div class="ring-inner">
+              <div class="ring-grade"  id="ring-grade">B</div>
+              <div class="ring-value"  id="ring-value">3.1<span>t</span></div>
+              <div class="ring-status" id="ring-status">34% below global avg</div>
+            </div>
+          </div>
+
+          <!-- 3 metric cards -->
+          <div class="metric-cards">
+            <div class="metric-card">
+              <div class="metric-icon">📅</div>
+              <div class="metric-body">
+                <div class="metric-label">This month</div>
+                <div class="metric-value" id="metric-month">258 <span>kg</span></div>
+                <div class="metric-change negative" id="metric-month-change">↓ 12% vs last month</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">🔥</div>
+              <div class="metric-body">
+                <div class="metric-label">Biggest source</div>
+                <div class="metric-value" id="metric-source">Transport</div>
+                <div class="metric-change" id="metric-source-pct">41% of total</div>
+              </div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-icon">🌳</div>
+              <div class="metric-body">
+                <div class="metric-label">Offsets earned</div>
+                <div class="metric-value positive" id="metric-offsets">−21 <span>kg</span></div>
+                <div class="metric-change">This month</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Monthly bar chart -->
+        <div class="card chart-card">
+          <div class="card-header">
+            <h2>Monthly emissions</h2>
+            <div class="chart-legend">
+              <span class="legend-dot green"></span> Actual
+              <span class="legend-dot teal"></span> Target
+            </div>
+          </div>
+          <div class="bar-chart" id="monthly-chart" aria-label="Monthly emissions chart"></div>
+        </div>
+
+        <!-- Category breakdown -->
+        <div class="card">
+          <h2 class="card-header-h2">Breakdown by category</h2>
+          <div class="breakdown-list" id="breakdown-list"></div>
+        </div>
+
+        <!-- Insight strip -->
+        <div class="insight-strip">
+          <span class="insight-tree">🌳</span>
+          <p>Your reduction this month saved <strong>31 kg</strong> — equal to <strong>310 km</strong> of driving not done.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN 3 — LOG ACTIVITY
+    ═══════════════════════════════════════ -->
+    <section id="screen-log" class="screen" aria-label="Log activity">
+      <div class="screen-inner">
+        <h1>Log activity</h1>
+
+        <!-- Category tabs -->
+        <div class="category-tabs" role="tablist" aria-label="Activity categories">
+          <button class="cat-tab active" role="tab" data-cat="transport" id="cattab-transport" aria-selected="true">🚗 Transport</button>
+          <button class="cat-tab" role="tab" data-cat="food"      id="cattab-food"      aria-selected="false">🍽️ Food</button>
+          <button class="cat-tab" role="tab" data-cat="energy"    id="cattab-energy"    aria-selected="false">⚡ Energy</button>
+          <button class="cat-tab" role="tab" data-cat="shopping"  id="cattab-shopping"  aria-selected="false">🛍️ Shopping</button>
+        </div>
+
+        <!-- Activity grid panels -->
+        <div id="cat-panel-transport" class="cat-panel active" role="tabpanel" aria-labelledby="cattab-transport">
+          <div class="activity-grid" id="grid-transport"></div>
+        </div>
+        <div id="cat-panel-food" class="cat-panel" role="tabpanel" aria-labelledby="cattab-food">
+          <div class="activity-grid" id="grid-food"></div>
+        </div>
+        <div id="cat-panel-energy" class="cat-panel" role="tabpanel" aria-labelledby="cattab-energy">
+          <div class="activity-grid" id="grid-energy"></div>
+        </div>
+        <div id="cat-panel-shopping" class="cat-panel" role="tabpanel" aria-labelledby="cattab-shopping">
+          <div class="activity-grid" id="grid-shopping"></div>
+        </div>
+
+        <!-- Quantity + preview -->
+        <div class="log-controls card">
+          <label class="log-qty-label" for="log-qty">Quantity</label>
+          <div class="log-qty-row">
+            <input type="number" id="log-qty" min="0" step="0.1" placeholder="0" class="qty-input" />
+            <span class="qty-unit" id="qty-unit">km</span>
+          </div>
+          <div class="co2-preview" id="co2-preview">
+            <div class="preview-main">CO₂ emitted: <strong id="co2-val">—</strong></div>
+            <div class="preview-eq" id="co2-eq">Select an activity and enter quantity</div>
+          </div>
+          <button class="btn-primary" id="btn-add-log">Add to log</button>
+        </div>
+
+        <!-- Daily log list -->
+        <div class="card">
+          <h2 class="card-header-h2">Today's log</h2>
+          <div id="log-list" class="log-list">
+            <p class="empty-log" id="empty-log-msg">No entries yet. Log an activity above.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN 4 — INSIGHTS
+    ═══════════════════════════════════════ -->
+    <section id="screen-insights" class="screen" aria-label="Insights">
+      <div class="screen-inner">
+        <h1>Insights</h1>
+
+        <div class="insight-cards" id="insight-cards"></div>
+
+        <!-- Comparison bar chart -->
+        <div class="card chart-card">
+          <h2 class="card-header-h2">How you compare</h2>
+          <div class="horiz-bar-chart" id="comparison-chart" aria-label="Comparison bar chart"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN 5 — ACTIONS
+    ═══════════════════════════════════════ -->
+    <section id="screen-actions" class="screen" aria-label="Actions">
+      <div class="screen-inner">
+        <h1>Recommended actions</h1>
+        <p class="section-sub">Small changes, big impact. Complete an action to earn points.</p>
+        <div class="action-list" id="action-list"></div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════
+         SCREEN 6 — COMMUNITY
+    ═══════════════════════════════════════ -->
+    <section id="screen-community" class="screen" aria-label="Community">
+      <div class="screen-inner">
+        <h1>Community</h1>
+
+        <!-- Stat cards -->
+        <div class="community-stats">
+          <div class="card stat-card">
+            <div class="stat-icon">🏆</div>
+            <div>
+              <div class="stat-big">#142</div>
+              <div class="stat-desc">of 8,320 users</div>
+              <div class="stat-label">Your community rank</div>
+            </div>
+          </div>
+          <div class="card stat-card">
+            <div class="stat-icon">🌍</div>
+            <div>
+              <div class="stat-big">2,140 t</div>
+              <div class="stat-desc">saved collectively</div>
+              <div class="stat-label">This month</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Leaderboard -->
+        <div class="card">
+          <h2 class="card-header-h2">Leaderboard</h2>
+          <div class="leaderboard" id="leaderboard"></div>
+        </div>
+
+        <!-- Active challenges -->
+        <div class="challenges-section">
+          <h2>Active challenges</h2>
+          <div class="challenge-cards" id="challenge-cards"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
