@@ -1,0 +1,5 @@
+services:
+  - type: web
+    name: eco-trace-carbon-footprint
+    env: static
+    staticPublishPath: .
