@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EcoTrace — Test Diagnostics Runner</title>
+  <style>
+    :root {
+      --bg: #0b0f19;
+      --surface: #151c2c;
+      --border: rgba(255,255,255,0.08);
+      --text-primary: #f3f4f6;
+      --text-secondary: #9ca3af;
+      --green: #10b981;
+      --red: #ef4444;
+      --blue: #3b82f6;
+      --radius: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      padding: 2rem 1.5rem;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);
+    }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .subtitle {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 1.5rem;
+    }
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.75rem 1rem;
+      text-align: center;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .stat-val {
+      font-size: 1.5rem;
+      font-weight: 700;
+      margin-top: 0.25rem;
+    }
+    .stat-val.passed { color: var(--green); }
+    .stat-val.failed { color: var(--red); }
+    
+    .test-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+    }
+    .test-item {
+      background: rgba(255,255,255,0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.85rem 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background var(--t);
+    }
+    .test-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .test-title {
+      font-size: 0.95rem;
+      font-weight: 500;
+    }
+    .test-desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+    .test-status {
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+    .test-status.pass {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--green);
+    }
+    .test-status.fail {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--red);
+    }
+    .back-btn {
+      margin-top: 1.5rem;
+      display: inline-block;
+      color: var(--blue);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    .back-btn:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <!-- Mock localstorage and DOM bindings to prevent app.js failures -->
+  <div id="toast-container" style="display:none;"></div>
+  <div id="btn-see-dashboard" style="display:none;"></div>
+  <div id="preview-value" style="display:none;"></div>
+  <div id="quiz-progress-fill" style="display:none;"></div>
+  <div id="quiz-step-label" style="display:none;"></div>
+  
+  <div class="container">
+    <h1>🌿 EcoTrace Browser Test Suite</h1>
+    <div class="subtitle">Diagnostic validation suite running client-side test assertions.</div>
+    
+    <div class="stats-bar">
+      <div class="stat-card">
+        <div class="stat-label">Total Tests</div>
+        <div class="stat-val" id="total-tests">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Passed</div>
+        <div class="stat-val passed" id="passed-tests">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Failed</div>
+        <div class="stat-val failed" id="failed-tests">0</div>
+      </div>
+    </div>
+    
+    <div class="test-list" id="test-results">
+      <!-- Test items appended here dynamically -->
+    </div>
+    
+    <a href="index.html" class="back-btn">← Back to EcoTrace App</a>
+  </div>
+
+  <!-- Load the main application code (functions are declared globally) -->
+  <script src="app.js"></script>
+
+  <script>
+    // Test helper functions
+    const results = [];
+    const resultsContainer = document.getElementById('test-results');
+
+    function assert(condition, message) {
+      if (!condition) {
+        throw new Error(message || "Assertion failed");
+      }
+    }
+
+    function addTestResult(name, desc, error) {
+      const passed = !error;
+      results.push({ name, desc, passed, errorMsg: error ? error.message : null });
+
+      const el = document.createElement('div');
+      el.className = 'test-item';
+      
+      const info = document.createElement('div');
+      info.className = 'test-info';
+      
+      const title = document.createElement('div');
+      title.className = 'test-title';
+      title.textContent = `🧪 ${name}`;
+      
+      const description = document.createElement('div');
+      description.className = 'test-desc';
+      description.textContent = passed ? desc : `❌ Error: ${error.message}`;
+
+      info.appendChild(title);
+      info.appendChild(description);
+
+      const status = document.createElement('span');
+      status.className = `test-status ${passed ? 'pass' : 'fail'}`;
+      status.textContent = passed ? 'PASS' : 'FAIL';
+
+      el.appendChild(info);
+      el.appendChild(status);
+      resultsContainer.appendChild(el);
+      
+      updateStats();
+    }
+
+    function updateStats() {
+      const total = results.length;
+      const passed = results.filter(r => r.passed).length;
+      const failed = total - passed;
+
+      document.getElementById('total-tests').textContent = total;
+      document.getElementById('passed-tests').textContent = passed;
+      document.getElementById('failed-tests').textContent = failed;
+    }
+
+    function test(name, desc, testFn) {
+      try {
+        testFn();
+        addTestResult(name, desc, null);
+      } catch (error) {
+        addTestResult(name, desc, error);
+      }
+    }
+
+    // --- EXECUTE TEST CASES ---
+    window.addEventListener('load', () => {
+      
+      test(
+        "calculateAnnualBaseline() — Basic Addition", 
+        "Sums transportation, flights, diet, and energy rates into annual footprint.", 
+        () => {
+          const answers = { q1: 2.4, q2: 1.5, q3: 1.7, q4: 0.5 };
+          const result = calculateAnnualBaseline(answers);
+          assert(result === 6.1, `Expected 6.1, got ${result}`);
+        }
+      );
+
+      test(
+        "calculateAnnualBaseline() — Empty State Handling", 
+        "Handles empty quiz inputs gracefully, returning 0.", 
+        () => {
+          const result = calculateAnnualBaseline({});
+          assert(result === 0, `Expected 0, got ${result}`);
+        }
+      );
+
+      test(
+        "calculateEmission() — Math Accuracy", 
+        "Computes exact emission quantities by multiplying activity rate with user logs.", 
+        () => {
+          // EV rate is 0.05, travel 250km
+          const result = calculateEmission(0.05, 250);
+          assert(result === 12.5, `Expected 12.5, got ${result}`);
+        }
+      );
+
+      test(
+        "calculateEmission() — Decimals Rounding", 
+        "Rounds emissions to 2 decimal places to prevent float precision leaks.", 
+        () => {
+          // Bus rate is 0.089, travel 12.7km -> 1.1303 -> rounds to 1.13
+          const result = calculateEmission(0.089, 12.7);
+          assert(result === 1.13, `Expected 1.13, got ${result}`);
+        }
+      );
+
+      test(
+        "validateQuantity() — Positive Numbers", 
+        "Allows numbers greater than zero.", 
+        () => {
+          assert(validateQuantity(15.5) === true, "Should accept 15.5");
+          assert(validateQuantity("3") === true, "Should parse numeric strings");
+        }
+      );
+
+      test(
+        "validateQuantity() — Zero and Negative Numbers", 
+        "Rejects negative input values and zero to maintain data sanitization.", 
+        () => {
+          assert(validateQuantity(0) === false, "Should reject 0");
+          assert(validateQuantity(-5) === false, "Should reject negative inputs");
+          assert(validateQuantity("abc") === false, "Should reject non-numeric string values");
+        }
+      );
+
+      test(
+        "validateQuantity() — Extreme Overflow Values", 
+        "Rejects extreme numbers (> 1,000,000) to protect database buffers.", 
+        () => {
+          assert(validateQuantity(9999999) === false, "Should reject excessive inputs");
+        }
+      );
+
+      test(
+        "validateStateSchema() — Type Sanitization", 
+        "Checks raw localStorage inputs and sanitizes corrupt parameters.", 
+        () => {
+          const malformed = {
+            baseline: "corrupt_string",
+            quizAnswers: { q1: 2.4, invalid_q: 10.5 },
+            logEntries: [
+              { id: 1234, name: "Walk", qty: "text", kg: 0 } // invalid qty type
+            ]
+          };
+
+          const sanitized = validateStateSchema(malformed);
+          assert(sanitized.baseline === null, "Corrupted baseline must reset to null");
+          assert(sanitized.quizAnswers.invalid_q === undefined, "Undefined quiz keys should be discarded");
+          assert(sanitized.logEntries[0].qty === 0, "Non-numeric log quantites should revert to 0");
+        }
+      );
+    });
+  </script>
+</body>
+</html>

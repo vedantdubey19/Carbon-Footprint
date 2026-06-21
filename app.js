@@ -108,7 +108,107 @@ const CHALLENGES_DATA = [
 ];
 
 /* ══════════════════════════════════════════
-   STATE
+   CALCULATION & VALIDATION UTILITIES
+   ══════════════════════════════════════════ */
+
+/**
+ * Calculates baseline annual carbon footprint from quiz answers.
+ * @param {Object} answers 
+ * @returns {number} tonnes CO2 / year
+ */
+function calculateAnnualBaseline(answers) {
+  if (!answers || typeof answers !== 'object') return 0;
+  return parseFloat(
+    Object.values(answers)
+      .reduce((sum, val) => sum + (parseFloat(val) || 0), 0)
+      .toFixed(1)
+  );
+}
+
+/**
+ * Calculates emissions for a specific logged activity.
+ * @param {number} rate - kg CO2 per unit
+ * @param {number} qty - quantity
+ * @returns {number} kg CO2
+ */
+function calculateEmission(rate, qty) {
+  if (typeof rate !== 'number' || typeof qty !== 'number') return 0;
+  return parseFloat((rate * qty).toFixed(2));
+}
+
+/**
+ * Validates a user quantity input to prevent invalid numbers or overflows.
+ * @param {any} value 
+ * @returns {boolean}
+ */
+function validateQuantity(value) {
+  const parsed = parseFloat(value);
+  return !isNaN(parsed) && isFinite(parsed) && parsed > 0 && parsed <= 1000000;
+}
+
+/**
+ * Validates the loaded state schema for robustness.
+ * @param {Object} raw 
+ * @returns {Object} validated state
+ */
+function validateStateSchema(raw) {
+  const validated = {
+    baseline: null,
+    quizAnswers: {},
+    logEntries: [],
+    completedActions: new Set(),
+    joinedChallenges: new Set()
+  };
+
+  if (raw && typeof raw === 'object') {
+    // Baseline
+    if (typeof raw.baseline === 'number' && isFinite(raw.baseline) && raw.baseline >= 0) {
+      validated.baseline = parseFloat(raw.baseline.toFixed(1));
+    }
+    // Quiz Answers
+    if (raw.quizAnswers && typeof raw.quizAnswers === 'object' && !Array.isArray(raw.quizAnswers)) {
+      Object.entries(raw.quizAnswers).forEach(([qKey, val]) => {
+        if (['q1', 'q2', 'q3', 'q4'].includes(qKey) && typeof val === 'number' && isFinite(val) && val >= 0) {
+          validated.quizAnswers[qKey] = val;
+        }
+      });
+    }
+    // Log Entries
+    if (Array.isArray(raw.logEntries)) {
+      raw.logEntries.forEach(entry => {
+        if (entry && typeof entry === 'object') {
+          validated.logEntries.push({
+            id: typeof entry.id === 'number' ? entry.id : Date.now(),
+            icon: typeof entry.icon === 'string' ? entry.icon : '📝',
+            name: typeof entry.name === 'string' ? entry.name : 'Unknown Activity',
+            time: typeof entry.time === 'string' ? entry.time : '',
+            qty: typeof entry.qty === 'number' ? entry.qty : 0,
+            unit: typeof entry.unit === 'string' ? entry.unit : '',
+            kg: typeof entry.kg === 'number' ? entry.kg : 0,
+            isOffset: typeof entry.isOffset === 'boolean' ? entry.isOffset : false
+          });
+        }
+      });
+    }
+    // Completed Actions
+    if (Array.isArray(raw.completedActions)) {
+      raw.completedActions.forEach(id => {
+        if (typeof id === 'string') validated.completedActions.add(id);
+      });
+    }
+    // Joined Challenges
+    if (Array.isArray(raw.joinedChallenges)) {
+      raw.joinedChallenges.forEach(id => {
+        if (typeof id === 'string') validated.joinedChallenges.add(id);
+      });
+    }
+  }
+
+  return validated;
+}
+
+/* ══════════════════════════════════════════
+   STATE MANAGEMENT
    ══════════════════════════════════════════ */
 const State = {
   baseline: null,      // tonnes CO2 / year
@@ -122,26 +222,48 @@ const State = {
   load() {
     try {
       const b = localStorage.getItem('eco_baseline');
-      if (b) this.baseline = parseFloat(b);
       const qa = localStorage.getItem('eco_quiz_answers');
-      if (qa) this.quizAnswers = JSON.parse(qa);
       const le = localStorage.getItem('eco_log_entries');
-      if (le) this.logEntries = JSON.parse(le);
       const ca = localStorage.getItem('eco_completed_actions');
-      if (ca) this.completedActions = new Set(JSON.parse(ca));
       const jc = localStorage.getItem('eco_joined_challenges');
-      if (jc) this.joinedChallenges = new Set(JSON.parse(jc));
-    } catch (e) { console.warn('State load error', e); }
+
+      const raw = {
+        baseline: b ? parseFloat(b) : null,
+        quizAnswers: qa ? JSON.parse(qa) : {},
+        logEntries: le ? JSON.parse(le) : [],
+        completedActions: ca ? JSON.parse(ca) : [],
+        joinedChallenges: jc ? JSON.parse(jc) : []
+      };
+
+      const validated = validateStateSchema(raw);
+
+      this.baseline = validated.baseline;
+      this.quizAnswers = validated.quizAnswers;
+      this.logEntries = validated.logEntries;
+      this.completedActions = validated.completedActions;
+      this.joinedChallenges = validated.joinedChallenges;
+    } catch (e) {
+      console.warn('State load error, falling back to safe defaults', e);
+      this.baseline = null;
+      this.quizAnswers = {};
+      this.logEntries = [];
+      this.completedActions = new Set();
+      this.joinedChallenges = new Set();
+    }
   },
 
   save() {
     try {
-      if (this.baseline !== null) localStorage.setItem('eco_baseline', this.baseline);
+      if (this.baseline !== null) {
+        localStorage.setItem('eco_baseline', this.baseline.toString());
+      }
       localStorage.setItem('eco_quiz_answers', JSON.stringify(this.quizAnswers));
       localStorage.setItem('eco_log_entries', JSON.stringify(this.logEntries));
       localStorage.setItem('eco_completed_actions', JSON.stringify([...this.completedActions]));
       localStorage.setItem('eco_joined_challenges', JSON.stringify([...this.joinedChallenges]));
-    } catch (e) { console.warn('State save error', e); }
+    } catch (e) {
+      console.warn('State save error', e);
+    }
   },
 };
 
@@ -150,6 +272,8 @@ const State = {
    ══════════════════════════════════════════ */
 function showToast(message, type = 'default', duration = 3200) {
   const container = document.getElementById('toast-container');
+  if (!container) return;
+
   const toast = document.createElement('div');
   toast.className = `toast ${type}`;
   toast.textContent = message;
@@ -172,16 +296,17 @@ function showToast(message, type = 'default', duration = 3200) {
 let currentScreen = 'onboarding';
 
 function navigateTo(screenId) {
-  // Hide all screens
-  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-
-  // Show target
   const screen = document.getElementById(`screen-${screenId}`);
-  if (screen) screen.classList.add('active');
+  if (screen) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    screen.classList.add('active');
+  }
 
   const tab = document.getElementById(`tab-${screenId}`);
-  if (tab) tab.classList.add('active');
+  if (tab) {
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+  }
 
   currentScreen = screenId;
 
@@ -209,13 +334,12 @@ function initOnboarding() {
   const previewValue = document.getElementById('preview-value');
   const btnDash = document.getElementById('btn-see-dashboard');
 
+  if (!previewValue || !btnDash) return;
+
   let answeredCount = 0;
 
   function updateLiveSum() {
-    let total = 0;
-    questions.forEach(q => {
-      if (State.quizAnswers[q] !== undefined) total += parseFloat(State.quizAnswers[q]);
-    });
+    const total = calculateAnnualBaseline(State.quizAnswers);
     previewValue.innerHTML = `${total.toFixed(1)} <span>tonnes CO₂</span>`;
     return total;
   }
@@ -223,8 +347,8 @@ function initOnboarding() {
   function updateProgress() {
     answeredCount = Object.keys(State.quizAnswers).length;
     const pct = (answeredCount / 4) * 100;
-    progressFill.style.width = `${pct}%`;
-    stepLabel.textContent = `Step ${Math.min(answeredCount + 1, 4)} of 4`;
+    if (progressFill) progressFill.style.width = `${pct}%`;
+    if (stepLabel) stepLabel.textContent = `Step ${Math.min(answeredCount + 1, 4)} of 4`;
     btnDash.disabled = answeredCount < 4;
   }
 
@@ -237,7 +361,7 @@ function initOnboarding() {
     if (State.quizAnswers[qId] !== undefined) {
       options.forEach(opt => {
         const radio = opt.querySelector('input[type=radio]');
-        if (parseFloat(radio.value) === State.quizAnswers[qId]) {
+        if (radio && parseFloat(radio.value) === State.quizAnswers[qId]) {
           opt.classList.add('selected');
           radio.checked = true;
         }
@@ -247,7 +371,7 @@ function initOnboarding() {
       if (State.quizAnswers[qId] !== undefined && idx < questions.length - 1) {
         card.classList.remove('active');
         const nextCard = document.getElementById(questions[idx + 1]);
-        if (nextCard && !State.quizAnswers[questions[idx + 1]]) {
+        if (nextCard && State.quizAnswers[questions[idx + 1]] === undefined) {
           nextCard.classList.add('active');
         }
       }
@@ -256,6 +380,7 @@ function initOnboarding() {
     options.forEach(opt => {
       opt.addEventListener('click', () => {
         const radio = opt.querySelector('input[type=radio]');
+        if (!radio) return;
         const val = parseFloat(radio.value);
 
         // Deselect siblings
@@ -266,7 +391,7 @@ function initOnboarding() {
         State.quizAnswers[qId] = val;
         State.save();
 
-        const sum = updateLiveSum();
+        updateLiveSum();
         updateProgress();
 
         // Advance to next question
@@ -274,7 +399,8 @@ function initOnboarding() {
         if (idx < questions.length - 1) {
           setTimeout(() => {
             card.classList.remove('active');
-            document.getElementById(questions[idx + 1]).classList.add('active');
+            const next = document.getElementById(questions[idx + 1]);
+            if (next) next.classList.add('active');
           }, 300);
         }
 
@@ -288,19 +414,21 @@ function initOnboarding() {
   updateProgress();
 
   // Show correct active card
-  let firstUnanswered = questions.find(q => State.quizAnswers[q] === undefined);
+  const firstUnanswered = questions.find(q => State.quizAnswers[q] === undefined);
   if (firstUnanswered) {
     document.querySelectorAll('.quiz-card').forEach(c => c.classList.remove('active'));
-    document.getElementById(firstUnanswered).classList.add('active');
+    const firstCard = document.getElementById(firstUnanswered);
+    if (firstCard) firstCard.classList.add('active');
   } else {
     // All answered — show last card
     document.querySelectorAll('.quiz-card').forEach(c => c.classList.remove('active'));
-    document.getElementById('q4').classList.add('active');
+    const q4Card = document.getElementById('q4');
+    if (q4Card) q4Card.classList.add('active');
   }
 
   btnDash.addEventListener('click', () => {
-    const total = Object.values(State.quizAnswers).reduce((a, b) => a + parseFloat(b), 0);
-    State.baseline = parseFloat(total.toFixed(1));
+    const total = calculateAnnualBaseline(State.quizAnswers);
+    State.baseline = total;
     State.save();
     showToast('Baseline saved! Loading your dashboard…', 'success');
     setTimeout(() => navigateTo('dashboard'), 600);
@@ -320,18 +448,20 @@ function renderDashboard() {
   const offset = circumference * (1 - pct);
 
   const ring = document.getElementById('ring-track');
-  ring.style.strokeDashoffset = circumference; // reset
-  requestAnimationFrame(() => {
+  if (ring) {
+    ring.style.strokeDashoffset = circumference.toString(); // reset
     requestAnimationFrame(() => {
-      ring.style.strokeDashoffset = offset;
+      requestAnimationFrame(() => {
+        ring.style.strokeDashoffset = offset.toString();
+      });
     });
-  });
 
-  // Color ring by footprint
-  let ringColor = '#639922'; // green
-  if (footprint > 6)      ringColor = '#D85A30'; // coral
-  else if (footprint > 3) ringColor = '#BA7517'; // amber
-  ring.style.stroke = ringColor;
+    // Color ring by footprint
+    let ringColor = '#639922'; // green
+    if (footprint > 6)      ringColor = '#D85A30'; // coral
+    else if (footprint > 3) ringColor = '#BA7517'; // amber
+    ring.style.stroke = ringColor;
+  }
 
   // Grade
   let grade = 'A';
@@ -339,48 +469,73 @@ function renderDashboard() {
   else if (footprint > 5) grade = 'C';
   else if (footprint > 3) grade = 'B';
 
-  document.getElementById('ring-grade').textContent = grade;
-  document.getElementById('ring-value').innerHTML = `${footprint.toFixed(1)}<span>t</span>`;
+  const gradeEl = document.getElementById('ring-grade');
+  if (gradeEl) gradeEl.textContent = grade;
+  const valEl = document.getElementById('ring-value');
+  if (valEl) valEl.innerHTML = `${footprint.toFixed(1)}<span>t</span>`;
 
   const globalAvg = 4.7;
   const diff = ((globalAvg - footprint) / globalAvg * 100).toFixed(0);
   const statusEl = document.getElementById('ring-status');
-  if (footprint < globalAvg) {
-    statusEl.textContent = `${Math.abs(diff)}% below global avg`;
-    ring.style.stroke = '#639922';
-  } else {
-    statusEl.textContent = `${diff}% above global avg`;
-    ring.style.stroke = '#D85A30';
+  if (statusEl) {
+    if (footprint < globalAvg) {
+      statusEl.textContent = `${Math.abs(diff)}% below global avg`;
+      if (ring) ring.style.stroke = '#639922';
+    } else {
+      statusEl.textContent = `${diff}% above global avg`;
+      if (ring) ring.style.stroke = '#D85A30';
+    }
   }
 
   // ── Monthly bar chart ──
   renderMonthlyChart();
 
   // ── Breakdown ──
-  const total = BREAKDOWN_DATA.reduce((s, d) => s + d.kg, 0);
+  const totalBreakdown = BREAKDOWN_DATA.reduce((s, d) => s + d.kg, 0);
   const breakdownEl = document.getElementById('breakdown-list');
-  breakdownEl.innerHTML = '';
-  BREAKDOWN_DATA.forEach(item => {
-    const pctItem = ((item.kg / total) * 100).toFixed(0);
-    const div = document.createElement('div');
-    div.className = 'breakdown-item';
-    div.innerHTML = `
-      <div class="breakdown-row">
-        <span class="breakdown-name">${item.name}</span>
-        <span class="breakdown-val">${item.kg} kg</span>
-      </div>
-      <div class="breakdown-bar">
-        <div class="breakdown-fill" style="width:0%;background:${item.color}" data-w="${pctItem}"></div>
-      </div>`;
-    breakdownEl.appendChild(div);
-  });
+  if (breakdownEl) {
+    breakdownEl.innerHTML = '';
+    BREAKDOWN_DATA.forEach(item => {
+      const pctItem = ((item.kg / totalBreakdown) * 100).toFixed(0);
+      const div = document.createElement('div');
+      div.className = 'breakdown-item';
+      
+      const row = document.createElement('div');
+      row.className = 'breakdown-row';
+      
+      const name = document.createElement('span');
+      name.className = 'breakdown-name';
+      name.textContent = item.name;
+      
+      const value = document.createElement('span');
+      value.className = 'breakdown-val';
+      value.textContent = `${item.kg} kg`;
 
-  // Animate breakdown bars
-  setTimeout(() => {
-    breakdownEl.querySelectorAll('.breakdown-fill').forEach(el => {
-      el.style.width = el.dataset.w + '%';
+      row.appendChild(name);
+      row.appendChild(value);
+
+      const bar = document.createElement('div');
+      bar.className = 'breakdown-bar';
+
+      const fill = document.createElement('div');
+      fill.className = 'breakdown-fill';
+      fill.style.width = '0%';
+      fill.style.background = item.color;
+      fill.setAttribute('data-w', pctItem);
+
+      bar.appendChild(fill);
+      div.appendChild(row);
+      div.appendChild(bar);
+      breakdownEl.appendChild(div);
     });
-  }, 100);
+
+    // Animate breakdown bars
+    setTimeout(() => {
+      breakdownEl.querySelectorAll('.breakdown-fill').forEach(el => {
+        el.style.width = el.getAttribute('data-w') + '%';
+      });
+    }, 100);
+  }
 }
 
 function renderMonthlyChart() {
@@ -439,13 +594,43 @@ function renderLogScreen() {
       el.className = 'activity-item';
       el.dataset.id = item.id;
       el.dataset.cat = cat;
-      el.innerHTML = `
-        <span class="act-icon">${item.icon}</span>
-        <div class="act-body">
-          <div class="act-name">${item.name}</div>
-          <div class="act-rate">${item.rateLabel}</div>
-        </div>`;
+      el.setAttribute('tabindex', '0');
+      el.setAttribute('role', 'button');
+      el.setAttribute('aria-label', `Select ${item.name}, rate is ${item.rateLabel}`);
+
+      const icon = document.createElement('span');
+      icon.className = 'act-icon';
+      icon.textContent = item.icon;
+      icon.setAttribute('role', 'img');
+      icon.setAttribute('aria-label', item.name);
+
+      const body = document.createElement('div');
+      body.className = 'act-body';
+
+      const name = document.createElement('div');
+      name.className = 'act-name';
+      name.textContent = item.name;
+
+      const rate = document.createElement('div');
+      rate.className = 'act-rate';
+      rate.textContent = item.rateLabel;
+
+      body.appendChild(name);
+      body.appendChild(rate);
+      el.appendChild(icon);
+      el.appendChild(body);
+
+      // Mouse click
       el.addEventListener('click', () => selectActivity(item, cat));
+      
+      // Keyboard selection (Enter or Space)
+      el.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          selectActivity(item, cat);
+        }
+      });
+
       grid.appendChild(el);
     });
   });
@@ -453,22 +638,34 @@ function renderLogScreen() {
   // Category tab switching
   document.querySelectorAll('.cat-tab').forEach(tab => {
     tab.addEventListener('click', () => {
-      document.querySelectorAll('.cat-tab').forEach(t => { t.classList.remove('active'); t.setAttribute('aria-selected', 'false'); });
+      document.querySelectorAll('.cat-tab').forEach(t => { 
+        t.classList.remove('active'); 
+        t.setAttribute('aria-selected', 'false'); 
+      });
       document.querySelectorAll('.cat-panel').forEach(p => p.classList.remove('active'));
       tab.classList.add('active');
       tab.setAttribute('aria-selected', 'true');
       State.selectedCategory = tab.dataset.cat;
-      document.getElementById(`cat-panel-${tab.dataset.cat}`).classList.add('active');
+      const panel = document.getElementById(`cat-panel-${tab.dataset.cat}`);
+      if (panel) panel.classList.add('active');
       State.selectedActivity = null;
       updateCO2Preview();
     });
   });
 
   // Quantity input
-  document.getElementById('log-qty').addEventListener('input', updateCO2Preview);
+  const qtyInput = document.getElementById('log-qty');
+  if (qtyInput) {
+    qtyInput.removeEventListener('input', updateCO2Preview);
+    qtyInput.addEventListener('input', updateCO2Preview);
+  }
 
   // Add to log
-  document.getElementById('btn-add-log').addEventListener('click', addLogEntry);
+  const addLogBtn = document.getElementById('btn-add-log');
+  if (addLogBtn) {
+    addLogBtn.replaceWith(addLogBtn.cloneNode(true));
+    document.getElementById('btn-add-log').addEventListener('click', addLogEntry);
+  }
 
   renderLogList();
 }
@@ -482,17 +679,25 @@ function selectActivity(item, cat) {
   if (el) el.classList.add('selected');
 
   State.selectedActivity = item;
-  document.getElementById('qty-unit').textContent = item.unit;
-  document.getElementById('log-qty').value = '';
+  
+  const unitEl = document.getElementById('qty-unit');
+  if (unitEl) unitEl.textContent = item.unit;
+  
+  const qtyEl = document.getElementById('log-qty');
+  if (qtyEl) qtyEl.value = '';
+  
   updateCO2Preview();
 }
 
 function updateCO2Preview() {
   const item = State.selectedActivity;
   const qtyEl = document.getElementById('log-qty');
-  const qty = parseFloat(qtyEl.value) || 0;
   const co2ValEl = document.getElementById('co2-val');
   const co2EqEl = document.getElementById('co2-eq');
+
+  if (!qtyEl || !co2ValEl || !co2EqEl) return;
+
+  const qty = parseFloat(qtyEl.value) || 0;
 
   if (!item) {
     co2ValEl.textContent = '—';
@@ -500,7 +705,7 @@ function updateCO2Preview() {
     return;
   }
 
-  const kg = item.rate * qty;
+  const kg = calculateEmission(item.rate, qty);
   co2ValEl.textContent = `${kg.toFixed(2)} kg`;
 
   if (kg === 0) {
@@ -515,10 +720,16 @@ function addLogEntry() {
   const item = State.selectedActivity;
   if (!item) { showToast('Please select an activity first', 'error'); return; }
 
-  const qty = parseFloat(document.getElementById('log-qty').value);
-  if (!qty || qty <= 0) { showToast('Please enter a valid quantity', 'error'); return; }
+  const qtyInput = document.getElementById('log-qty');
+  if (!qtyInput) return;
+  
+  const qty = parseFloat(qtyInput.value);
+  if (!validateQuantity(qty)) { 
+    showToast('Please enter a valid positive quantity', 'error'); 
+    return; 
+  }
 
-  const kg = parseFloat((item.rate * qty).toFixed(2));
+  const kg = calculateEmission(item.rate, qty);
   const now = new Date();
   const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -537,7 +748,7 @@ function addLogEntry() {
   State.save();
   renderLogList();
 
-  document.getElementById('log-qty').value = '';
+  qtyInput.value = '';
   updateCO2Preview();
   showToast(`Logged ${item.name}: ${kg} kg CO₂`, kg > 0 ? 'default' : 'success');
 }
@@ -559,16 +770,39 @@ function renderLogList() {
   State.logEntries.forEach(entry => {
     const el = document.createElement('div');
     el.className = 'log-entry';
+    
+    const iconSpan = document.createElement('span');
+    iconSpan.className = 'log-entry-icon';
+    iconSpan.textContent = entry.icon || '📝';
+    iconSpan.setAttribute('role', 'img');
+    iconSpan.setAttribute('aria-label', entry.name || 'activity');
+
+    const bodyDiv = document.createElement('div');
+    bodyDiv.className = 'log-entry-body';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'log-entry-name';
+    nameDiv.textContent = entry.name || '';
+
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'log-entry-meta';
+    metaDiv.textContent = `${entry.time || ''} · ${entry.qty || 0} ${entry.unit || ''}`;
+
+    bodyDiv.appendChild(nameDiv);
+    bodyDiv.appendChild(metaDiv);
+
     const isOffset = entry.kg === 0;
     const kgStr = isOffset ? '0 kg' : `+${entry.kg} kg`;
     const co2Class = isOffset ? 'offset' : 'emission';
-    el.innerHTML = `
-      <span class="log-entry-icon">${entry.icon}</span>
-      <div class="log-entry-body">
-        <div class="log-entry-name">${entry.name}</div>
-        <div class="log-entry-meta">${entry.time} · ${entry.qty} ${entry.unit}</div>
-      </div>
-      <span class="log-entry-co2 ${co2Class}">${kgStr}</span>`;
+
+    const co2Span = document.createElement('span');
+    co2Span.className = `log-entry-co2 ${co2Class}`;
+    co2Span.textContent = kgStr;
+
+    el.appendChild(iconSpan);
+    el.appendChild(bodyDiv);
+    el.appendChild(co2Span);
+
     listEl.appendChild(el);
   });
 }
@@ -577,10 +811,10 @@ function renderLogList() {
    SCREEN 4 — INSIGHTS
    ══════════════════════════════════════════ */
 function renderInsights() {
-  // Insight cards
   const container = document.getElementById('insight-cards');
+  if (!container) return;
+
   if (container.children.length > 0) {
-    // Already rendered — re-render comparison chart (may need animation)
     renderComparisonChart();
     return;
   }
@@ -591,46 +825,84 @@ function renderInsights() {
 
     const impactClass = ins.impact === 'high' ? 'impact-high' : ins.impact === 'medium' ? 'impact-medium' : 'impact-low';
 
-    card.innerHTML = `
-      <span class="impact-badge ${impactClass}">${ins.badge}</span>
-      <div class="insight-title">${ins.title}</div>
-      <div class="insight-desc">${ins.desc}</div>
-      <div class="insight-saving">Potential saving: ${ins.saving}</div>
-      <button class="btn-insight">${ins.action}</button>`;
+    const badge = document.createElement('span');
+    badge.className = `impact-badge ${impactClass}`;
+    badge.textContent = ins.badge;
 
-    card.querySelector('.btn-insight').addEventListener('click', () => {
+    const title = document.createElement('div');
+    title.className = 'insight-title';
+    title.textContent = ins.title;
+
+    const desc = document.createElement('div');
+    desc.className = 'insight-desc';
+    desc.textContent = ins.desc;
+
+    const saving = document.createElement('div');
+    saving.className = 'insight-saving';
+    saving.textContent = `Potential saving: ${ins.saving}`;
+
+    const btn = document.createElement('button');
+    btn.className = 'btn-insight';
+    btn.textContent = ins.action;
+    btn.addEventListener('click', () => {
       showToast(`Opening action plan for: ${ins.title}`, 'info');
     });
+
+    card.appendChild(badge);
+    card.appendChild(title);
+    card.appendChild(desc);
+    card.appendChild(saving);
+    card.appendChild(btn);
 
     container.appendChild(card);
   });
 
   // Clear badge
-  document.getElementById('insights-badge').style.display = 'none';
+  const badgeEl = document.getElementById('insights-badge');
+  if (badgeEl) badgeEl.style.display = 'none';
 
   renderComparisonChart();
 }
 
 function renderComparisonChart() {
   const container = document.getElementById('comparison-chart');
+  if (!container) return;
   container.innerHTML = '';
   const maxVal = 5;
 
   COMPARISON_DATA.forEach(item => {
     const row = document.createElement('div');
     row.className = 'hbar-row';
-    row.innerHTML = `
-      <div class="hbar-label">${item.label}</div>
-      <div class="hbar-track">
-        <div class="hbar-fill" style="width:0%;background:${item.color}" data-w="${(item.value / maxVal) * 100}"></div>
-      </div>
-      <div class="hbar-val" style="color:${item.color}">${item.value}t</div>`;
+
+    const label = document.createElement('div');
+    label.className = 'hbar-label';
+    label.textContent = item.label;
+
+    const track = document.createElement('div');
+    track.className = 'hbar-track';
+
+    const fill = document.createElement('div');
+    fill.className = 'hbar-fill';
+    fill.style.width = '0%';
+    fill.style.background = item.color;
+    fill.setAttribute('data-w', ((item.value / maxVal) * 100).toString());
+
+    track.appendChild(fill);
+
+    const val = document.createElement('div');
+    val.className = 'hbar-val';
+    val.style.color = item.color;
+    val.textContent = `${item.value}t`;
+
+    row.appendChild(label);
+    row.appendChild(track);
+    row.appendChild(val);
     container.appendChild(row);
   });
 
   setTimeout(() => {
     container.querySelectorAll('.hbar-fill').forEach(el => {
-      el.style.width = el.dataset.w + '%';
+      el.style.width = el.getAttribute('data-w') + '%';
     });
   }, 80);
 }
@@ -640,7 +912,7 @@ function renderComparisonChart() {
    ══════════════════════════════════════════ */
 function renderActions() {
   const list = document.getElementById('action-list');
-  if (list.children.length > 0) return; // already rendered
+  if (!list || list.children.length > 0) return;
 
   ACTIONS_DATA.forEach(action => {
     const card = document.createElement('div');
@@ -651,26 +923,53 @@ function renderActions() {
     const diffClass = action.difficulty === 'Easy' ? 'tag-easy' : action.difficulty === 'Medium' ? 'tag-medium' : 'tag-hard';
     const isChecked = State.completedActions.has(action.id);
 
-    card.innerHTML = `
-      <div class="action-icon-wrap" style="background:${action.color}">${action.icon}</div>
-      <div class="action-body">
-        <div class="action-name">${action.name}</div>
-        <div class="action-desc">${action.desc}</div>
-        <div class="action-tags">
-          <span class="tag ${diffClass}">${action.difficulty}</span>
-          <span class="tag tag-saving">${action.saving}</span>
-        </div>
-      </div>
-      <button class="action-check ${isChecked ? 'checked' : ''}" 
-              id="check-${action.id}" 
-              aria-label="Mark ${action.name} as completed"
-              aria-pressed="${isChecked}">
-        ${isChecked ? '✓' : ''}
-      </button>`;
+    const iconWrap = document.createElement('div');
+    iconWrap.className = 'action-icon-wrap';
+    iconWrap.style.background = action.color;
+    iconWrap.textContent = action.icon;
+    iconWrap.setAttribute('role', 'img');
+    iconWrap.setAttribute('aria-label', action.name);
 
-    const checkBtn = card.querySelector('.action-check');
+    const body = document.createElement('div');
+    body.className = 'action-body';
+
+    const name = document.createElement('div');
+    name.className = 'action-name';
+    name.textContent = action.name;
+
+    const desc = document.createElement('div');
+    desc.className = 'action-desc';
+    desc.textContent = action.desc;
+
+    const tags = document.createElement('div');
+    tags.className = 'action-tags';
+
+    const diffTag = document.createElement('span');
+    diffTag.className = `tag ${diffClass}`;
+    diffTag.textContent = action.difficulty;
+
+    const savingTag = document.createElement('span');
+    savingTag.className = 'tag tag-saving';
+    savingTag.textContent = action.saving;
+
+    tags.appendChild(diffTag);
+    tags.appendChild(savingTag);
+    body.appendChild(name);
+    body.appendChild(desc);
+    body.appendChild(tags);
+
+    const checkBtn = document.createElement('button');
+    checkBtn.className = `action-check ${isChecked ? 'checked' : ''}`;
+    checkBtn.id = `check-${action.id}`;
+    checkBtn.setAttribute('aria-label', `Mark ${action.name} as completed`);
+    checkBtn.setAttribute('aria-pressed', isChecked.toString());
+    checkBtn.textContent = isChecked ? '✓' : '';
+
     checkBtn.addEventListener('click', () => toggleAction(action, checkBtn, card));
 
+    card.appendChild(iconWrap);
+    card.appendChild(body);
+    card.appendChild(checkBtn);
     list.appendChild(card);
   });
 }
@@ -707,34 +1006,61 @@ function renderCommunity() {
 
 function renderLeaderboard() {
   const lb = document.getElementById('leaderboard');
-  if (lb.children.length > 0) return;
+  if (!lb || lb.children.length > 0) return;
 
   LEADERBOARD_DATA.forEach(row => {
     const el = document.createElement('div');
     el.className = `lb-row${row.isYou ? ' you-row' : ''}`;
-    el.innerHTML = `
-      <div class="lb-rank">${row.rank}</div>
-      <div class="lb-avatar">${row.initials}</div>
-      <div class="lb-name">
-        <div>${row.name}</div>
-        <div class="lb-city">${row.city}</div>
-      </div>
-      <div class="lb-footprint">${row.footprint}</div>`;
+
+    const rank = document.createElement('div');
+    rank.className = 'lb-rank';
+    rank.textContent = row.rank;
+
+    const avatar = document.createElement('div');
+    avatar.className = 'lb-avatar';
+    avatar.textContent = row.initials;
+
+    const name = document.createElement('div');
+    name.className = 'lb-name';
+
+    const fullname = document.createElement('div');
+    fullname.textContent = row.name;
+
+    const city = document.createElement('div');
+    city.className = 'lb-city';
+    city.textContent = row.city;
+
+    name.appendChild(fullname);
+    name.appendChild(city);
+
+    const footprint = document.createElement('div');
+    footprint.className = 'lb-footprint';
+    footprint.textContent = row.footprint;
+
+    el.appendChild(rank);
+    el.appendChild(avatar);
+    el.appendChild(name);
+    el.appendChild(footprint);
     lb.appendChild(el);
   });
 }
 
 function renderChallenges() {
   const container = document.getElementById('challenge-cards');
+  if (!container) return;
+
   if (container.children.length > 0) {
     // Update progress for joined challenges
     State.joinedChallenges.forEach(id => {
       const fill = container.querySelector(`[data-challenge-fill="${id}"]`);
       const btn  = container.querySelector(`[data-challenge-btn="${id}"]`);
-      if (fill && parseFloat(fill.dataset.progress) === 0) {
+      if (fill && parseFloat(fill.getAttribute('data-progress')) === 0) {
         fill.style.width = '5%';
       }
-      if (btn) { btn.textContent = 'Joined ✓'; btn.classList.add('joined'); }
+      if (btn) { 
+        btn.textContent = 'Joined ✓'; 
+        btn.classList.add('joined'); 
+      }
     });
     return;
   }
@@ -743,43 +1069,59 @@ function renderChallenges() {
     const card = document.createElement('div');
     card.className = 'challenge-card';
 
-    const progress = State.joinedChallenges.has(ch.id) && ch.progress === 0 ? 5 : ch.progress;
+    const header = document.createElement('div');
+    header.className = 'challenge-header';
 
-    card.innerHTML = `
-      <div class="challenge-header">
-        <div>
-          <div class="challenge-title">${ch.title}</div>
-          <div class="challenge-meta">${ch.participants} participants · ends ${ch.endDate}</div>
-        </div>
-        ${ch.joinable
-          ? `<button class="challenge-join" data-challenge-btn="${ch.id}" id="join-${ch.id}">Join challenge</button>`
-          : `<span class="challenge-pct">${ch.progress}% done</span>`
-        }
-      </div>
-      <div class="challenge-bar">
-        <div class="challenge-bar-fill" 
-             data-challenge-fill="${ch.id}" 
-             data-progress="${ch.progress}"
-             style="width:0%"></div>
-      </div>`;
+    const textWrap = document.createElement('div');
+    
+    const title = document.createElement('div');
+    title.className = 'challenge-title';
+    title.textContent = ch.title;
 
-    container.appendChild(card);
+    const meta = document.createElement('div');
+    meta.className = 'challenge-meta';
+    meta.textContent = `${ch.participants} participants · ends ${ch.endDate}`;
+
+    textWrap.appendChild(title);
+    textWrap.appendChild(meta);
+    header.appendChild(textWrap);
 
     if (ch.joinable) {
-      const btn = card.querySelector(`[data-challenge-btn="${ch.id}"]`);
-      if (State.joinedChallenges.has(ch.id)) {
-        btn.textContent = 'Joined ✓';
-        btn.classList.add('joined');
-      }
+      const btn = document.createElement('button');
+      btn.className = 'challenge-join';
+      btn.setAttribute('data-challenge-btn', ch.id);
+      btn.id = `join-${ch.id}`;
+      btn.textContent = State.joinedChallenges.has(ch.id) ? 'Joined ✓' : 'Join challenge';
+      if (State.joinedChallenges.has(ch.id)) btn.classList.add('joined');
       btn.addEventListener('click', () => joinChallenge(ch, btn, card));
+      header.appendChild(btn);
+    } else {
+      const pct = document.createElement('span');
+      pct.className = 'challenge-pct';
+      pct.textContent = `${ch.progress}% done`;
+      header.appendChild(pct);
     }
+
+    const bar = document.createElement('div');
+    bar.className = 'challenge-bar';
+
+    const fill = document.createElement('div');
+    fill.className = 'challenge-bar-fill';
+    fill.setAttribute('data-challenge-fill', ch.id);
+    fill.setAttribute('data-progress', ch.progress.toString());
+    fill.style.width = '0%';
+
+    bar.appendChild(fill);
+    card.appendChild(header);
+    card.appendChild(bar);
+    container.appendChild(card);
   });
 
   // Animate bars
   setTimeout(() => {
     container.querySelectorAll('.challenge-bar-fill').forEach(el => {
-      const ch = CHALLENGES_DATA.find(c => c.id === el.dataset.challengeFill);
-      const p = State.joinedChallenges.has(el.dataset.challengeFill) && ch?.progress === 0 ? 5 : (ch?.progress ?? 0);
+      const ch = CHALLENGES_DATA.find(c => c.id === el.getAttribute('data-challenge-fill'));
+      const p = State.joinedChallenges.has(el.getAttribute('data-challenge-fill')) && ch?.progress === 0 ? 5 : (ch?.progress ?? 0);
       el.style.width = `${p}%`;
     });
   }, 80);
@@ -804,14 +1146,54 @@ function joinChallenge(ch, btn, card) {
 }
 
 /* ══════════════════════════════════════════
+   METHODOLOGY ACCORDION
+   ══════════════════════════════════════════ */
+function initMethodology() {
+  const btn = document.getElementById('btn-toggle-methodology');
+  const content = document.getElementById('methodology-content');
+  if (!btn || !content) return;
+
+  btn.addEventListener('click', () => {
+    const isExpanded = btn.getAttribute('aria-expanded') === 'true';
+    btn.setAttribute('aria-expanded', (!isExpanded).toString());
+    content.style.display = isExpanded ? 'none' : 'block';
+    btn.textContent = isExpanded ? 'Show details ↓' : 'Hide details ↑';
+  });
+}
+
+/* ══════════════════════════════════════════
    BOOTSTRAP
    ══════════════════════════════════════════ */
-document.addEventListener('DOMContentLoaded', () => {
-  State.load();
-  initNav();
-  initOnboarding();
+if (typeof document !== 'undefined') {
+  document.addEventListener('DOMContentLoaded', () => {
+    State.load();
+    initNav();
+    initOnboarding();
+    initMethodology();
 
-  // If baseline already set, default to dashboard
-  const startScreen = State.baseline !== null ? 'dashboard' : 'onboarding';
-  navigateTo(startScreen);
-});
+    // If baseline already set, default to dashboard
+    const startScreen = State.baseline !== null ? 'dashboard' : 'onboarding';
+    navigateTo(startScreen);
+  });
+}
+
+/* ══════════════════════════════════════════
+   EXPORTS FOR JEST AND TESTING
+   ══════════════════════════════════════════ */
+if (typeof module !== 'undefined' && typeof module.exports !== 'undefined') {
+  module.exports = {
+    ACTIVITY_DATA,
+    MONTHLY_DATA,
+    BREAKDOWN_DATA,
+    INSIGHTS_DATA,
+    COMPARISON_DATA,
+    ACTIONS_DATA,
+    LEADERBOARD_DATA,
+    CHALLENGES_DATA,
+    calculateAnnualBaseline,
+    calculateEmission,
+    validateQuantity,
+    validateStateSchema,
+    State
+  };
+}

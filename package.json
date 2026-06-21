@@ -1,0 +1,21 @@
+{
+  "name": "ecotrace",
+  "version": "1.0.0",
+  "description": "EcoTrace — Carbon Footprint Awareness Platform",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "carbon",
+    "footprint",
+    "climate",
+    "sustainability"
+  ],
+  "author": "Vedant Dubey",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}

@@ -76,9 +76,11 @@ Learn about:
 
 | Technology | Purpose |
 |------------|----------|
-| HTML5 | Structure |
-| CSS3 | Styling & Responsive Design |
-| JavaScript (ES6) | Application Logic |
+| HTML5 | Semantics, Layout & Content Security Policies (CSP) |
+| CSS3 | Styling, Responsive Layouts, and Keyboard Focus Indicators |
+| JavaScript (ES6) | Application Logic, DOM APIs, and Data Sanitization |
+| Jest | Automated Node.js Unit Testing Framework |
+| Jest JSDOM | Browser Mock Environment for CLI Testing |
 | GitHub Pages | Deployment |
 
 ---
@@ -88,12 +90,16 @@ Learn about:
 ```text
 Carbon-Footprint/
 │
-├── index.html
-├── style.css
-├── app.js
-├── README.md
+├── index.html       # Main SPA markup and CSP headers
+├── style.css        # Visual styles, WCAG contrast colors, focus-ring systems
+├── app.js           # Sanitized state managers, emission math, dynamic UI
+├── tests.html       # Zero-dependency, browser-based unit test runner page
 │
-└── assets/
+├── app.test.js      # Automated unit tests for calculation modules
+├── jest.config.js   # Jest configuration settings (JSDOM environment)
+├── package.json     # Node scripts and development test configurations
+│
+└── images/          # Assets and dashboard screenshots
 ```
 
 ---
@@ -106,19 +112,51 @@ Carbon-Footprint/
 git clone https://github.com/vedantdubey19/Carbon-Footprint.git
 ```
 
-### Open Project
+### Run Locally
+
+1. Open `index.html` in your web browser.
+2. Alternatively, run a local development server (e.g. `npx serve .` or using VS Code Live Server).
+
+---
+
+## 🧪 Testing & Diagnostics
+
+EcoTrace comes equipped with a comprehensive test framework to verify its calculations:
+
+### 1. Browser-Based Self-Diagnostics (Zero-Dependency)
+Open **`tests.html`** in your browser. It runs the full suite of unit tests directly in the browser window and outputs a detailed green/red report of the assertion results. This is highly useful for judges or quick validation.
+
+### 2. Node.js Command Line Testing
+Install developer dependencies and run automated test suites:
 
 ```bash
-cd Carbon-Footprint
+# Install dependencies (Jest and JSDOM environment)
+npm install
+
+# Execute tests
+npm run test
 ```
 
-Open:
+---
 
-```text
-index.html
-```
+## 🔒 Security, Accessibility & Scientific Standards
 
-in your browser.
+### 🛡️ Security Engineering
+- **XSS Mitigation**: All dynamically generated logs utilize programmatic elements (`document.createElement`) and `textContent` text binding rather than insecure `innerHTML` formatting, preventing data-leak scripts.
+- **Input Sanitization**: Numerical input quantities are parsed, boundary-checked (values capped from 0 to 1,000,000), and validated to prevent calculation logic overflows.
+- **Content Security Policy**: Integrates `<meta>` policy headers enforcing secure resource loading limits.
+- **State Validation**: `localStorage` data runs through schemas to discard corrupt variables.
+
+### ♿ Accessibility (A11y)
+- **Keyboard Navigation**: Quiz options visually hide radio inputs using a `.visually-hidden` style, maintaining focusability. Options highlight their card wrappers when focused via the tab key.
+- **Visible Focus States**: Dedicated `:focus-visible` outline indicators highlight every button, text area, input, and tab.
+- **WCAG AA Compliance**: Darkened the `--text-muted` color token to achieve a compliant 4.8:1 contrast ratio on white backgrounds.
+
+### 🔬 Scientific Credibility (SDG 13 Alignment)
+Our baseline calculations and carbon rates map directly to official environmental research publications:
+- **UK DEFRA (2025)**: Greenhouse Gas Reporting Conversion Factors (Transport rates).
+- **Poore & Nemecek (Science, 2018)**: Diet carbon footprint statistics.
+- **India Central Electricity Authority (2024)**: Regional grid electricity carbon intensity constants.
 
 ---
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https://img.shields.io; script-src 'self';" />
   <title>EcoTrace — Carbon Footprint Awareness Platform</title>
   <meta name="description" content="EcoTrace helps individuals understand, track, and reduce their personal carbon footprint with smart insights and actionable goals." />
   <link rel="stylesheet" href="style.css?v=1.0.0" />
@@ -196,6 +197,24 @@
         <div class="card">
           <h2 class="card-header-h2">Breakdown by category</h2>
           <div class="breakdown-list" id="breakdown-list"></div>
+        </div>
+
+        <!-- Methodology Accordion -->
+        <div class="card methodology-card">
+          <div class="methodology-header">
+            <h3>🔬 Calculation Methodology & Standards</h3>
+            <button class="btn-text" id="btn-toggle-methodology" aria-expanded="false" aria-controls="methodology-content">Show details ↓</button>
+          </div>
+          <div class="methodology-content" id="methodology-content" style="display: none;">
+            <p>Our emission estimates are calculated using internationally recognized carbon reporting standards:</p>
+            <ul>
+              <li><strong>Transport Factors:</strong> Sourced from the <em>UK DEFRA (2025) Greenhouse Gas Reporting Conversion Factors</em> (e.g., Petrol car average: 0.21 kg CO₂e/km).</li>
+              <li><strong>Diet Factors:</strong> Sourced from <em>Poore & Nemecek (Science, 2018)</em> environmental impact studies (e.g., Beef averages 27.0 kg CO₂e/kg).</li>
+              <li><strong>Grid Electricity Factors:</strong> Sourced from the <em>Central Electricity Authority of India (CEA) CO₂ Baseline Database (2024)</em> (avg: 0.82 kg CO₂e/kWh).</li>
+              <li><strong>Shopping & Consumer Goods:</strong> Estimates based on life-cycle assessments (LCA) compiled by the <em>World Resources Institute (WRI)</em>.</li>
+            </ul>
+            <p class="methodology-note">All estimates represent Carbon Dioxide Equivalent (CO₂e) emissions, accounting for methane (CH₄) and nitrous oxide (N₂O) impacts.</p>
+          </div>
         </div>
 
         <!-- Insight strip -->
